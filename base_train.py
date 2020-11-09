@@ -38,7 +38,7 @@ def train_and_save(model, data, device, model_name='sme_rnn', epochs=10, batch_s
         
         model, opt, tokens, n_hidden, n_layers, starting_epoch = load_checkpoint(CHECKPOINT_PATH, model, opt)
         starting_epoch += 1
-        print(f"Resuming {model_name} from epoch {starting_epoch} ...")
+        print(f"Resuming {model_name} from epoch {starting_epoch+1} ...")
         model.to(device)
 
     else:
