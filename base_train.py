@@ -91,8 +91,8 @@ def train_and_save(model, data, device, model_name='sme_rnn', epochs=10, batch_s
             val_h = model.init_hidden(batch_size)
             val_losses = []
 
-            move to eval mode
-            model.eval()
+            # move to eval mode
+            # model.eval()
             # for x, y in get_batches(val_data, batch_size, seq_length):
 
             #     # repest for validation
