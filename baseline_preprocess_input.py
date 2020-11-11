@@ -5,27 +5,27 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 import re 
 
-with open('data/sme-freecorpus.txt', 'r', encoding='utf-8') as f:
-    text = f.read()
+# with open('data/sme-freecorpus.txt', 'r', encoding='utf-8') as f:
+#     text = f.read()
 
-# clean very special char
-text = text.replace("¶", "").replace('•', '').replace('□', '').replace('§', '').replace('\uf03d', '').replace('π', '').replace('●', '').replace('µ', '').replace('º', '').replace('文', '').replace('中', '').replace('⅞', '').replace('½', '').replace('⅓', '').replace('¾', '').replace('¹', '').replace('³', '').replace('\t', '')
-# remove numbers
-text = re.sub(r'[0-9]+', '', text)
-# remove russian text (it is in data)
-text = re.sub(r"[А-Яа-я]", '', text) 
-# remove puctuation
-text = re.sub(r"[^\w\s]", "", text) 
+# # clean very special char
+# text = text.replace("¶", "").replace('•', '').replace('□', '').replace('§', '').replace('\uf03d', '').replace('π', '').replace('●', '').replace('µ', '').replace('º', '').replace('文', '').replace('中', '').replace('⅞', '').replace('½', '').replace('⅓', '').replace('¾', '').replace('¹', '').replace('³', '').replace('\t', '')
+# # remove numbers
+# text = re.sub(r'[0-9]+', '', text)
+# # remove russian text (it is in data)
+# text = re.sub(r"[А-Яа-я]", '', text) 
+# # remove puctuation
+# text = re.sub(r"[^\w\s]", "", text) 
 
-# encode the text 
-# 1. int2char, integers to characters
-# 2. char2int, characters to unique integers
-chars = tuple(set(text))
-int2char = dict(enumerate(chars))
-char2int = {ch: ii for ii, ch in int2char.items()}
+# # encode the text 
+# # 1. int2char, integers to characters
+# # 2. char2int, characters to unique integers
+# chars = tuple(set(text))
+# int2char = dict(enumerate(chars))
+# char2int = {ch: ii for ii, ch in int2char.items()}
 
-# encode the text
-encoded = np.array([char2int[ch] for ch in text])
+# # encode the text
+# encoded = np.array([char2int[ch] for ch in text])
 
 def one_hot_encode(arr, n_labels):
     

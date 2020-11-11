@@ -9,12 +9,12 @@ If you don't have CUDA drivers installed and a compatible NVidia GPU, you need t
 ## To run the baseline
 dowload the data (not analyzed) and put in the `data` folder.
 
-Just open the jupyter notebook and run from top.
+Just open the jupyter notebook and run from top. Make sure you load the correct model (the model you want to train from `models.py`) and set the needed hyperparamaters in the call to `train_and_save`. 
 To train over more epochs, change `n_epochs` before calling `train` function. 
 `train` will produce print statements per epoch. 
 `show_sample` will print generated text.
 
-When you have a trained model, and you want to resume its training, change `resume_from_saved` to True. 
+When you have a trained model, and you want to resume its training, change `resume_from_saved` to True, reload the notebook and run from top.
 
 
 

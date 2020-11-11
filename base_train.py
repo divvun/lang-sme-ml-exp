@@ -27,7 +27,7 @@ def load_checkpoint(path, model, opt):
     return model, opt, tokens, n_hidden, n_layers, checkpoint['epoch']
 
 
-def train_and_save(model, data, device, model_name='sme_rnn', epochs=10, batch_size=10, seq_length=50, lr=0.001, clip=5, val_frac=0.1, resume_from_saved=True):
+def train_and_save(model, data, device, model_name='sme_rnn', epochs=10, batch_size=10, seq_length=50, lr=0.001, clip=5, val_frac=0.1, resume_from_saved=True, bidirectional=False):
     opt = torch.optim.Adam(model.parameters(), lr=lr)
    
     criterion = nn.CrossEntropyLoss()
@@ -72,10 +72,14 @@ def train_and_save(model, data, device, model_name='sme_rnn', epochs=10, batch_s
             h = tuple([each.data for each in h])
 
             model.zero_grad()
-            
+           
             output, h = model(inputs, h)
-            # some reshaping for targets needed
-            loss = criterion(output, targets.view(batch_size*seq_length).long())
+            # some reshaping for output needed
+            if bidirectional:
+                output = output.view(output.size(0), output.size(2), output.size(1))
+                loss = criterion(output, targets)
+            else:
+                loss = criterion(output, targets.view(batch_size*seq_length).long())
             loss.backward()
             if resume_from_saved:
                 model.cpu()
@@ -108,7 +112,7 @@ def train_and_save(model, data, device, model_name='sme_rnn', epochs=10, batch_s
             
             # model.train() # reset to train 
 
-        save_checkpoint(model, opt, tokens, n_hidden, n_layers, epochs, CHECKPOINT_PATH)   
+        save_checkpoint(model, opt, tokens, n_hidden, n_layers, e, CHECKPOINT_PATH)   
         print("Epoch: {}...".format(e+1),
             "Loss: {:.4f}...".format(loss.item()))
                 # "Val Loss: {:.4f}".format(np.mean(val_losses)))
