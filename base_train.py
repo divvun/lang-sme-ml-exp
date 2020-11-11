@@ -88,11 +88,11 @@ def train_and_save(model, data, device, model_name='sme_rnn', epochs=10, batch_s
             # put back to cuda if was detached
             model.to(device)
             
-            # val_h = model.init_hidden(batch_size)
-            # val_losses = []
+            val_h = model.init_hidden(batch_size)
+            val_losses = []
 
-            # move to eval mode
-            # model.eval()
+            move to eval mode
+            model.eval()
             # for x, y in get_batches(val_data, batch_size, seq_length):
 
             #     # repest for validation
@@ -106,7 +106,11 @@ def train_and_save(model, data, device, model_name='sme_rnn', epochs=10, batch_s
             #     inputs, targets = inputs.cuda(), targets.cuda()
 
             #     output, val_h = model(inputs, val_h)
-            #     val_loss = criterion(output, targets.view(batch_size*seq_length).long())
+            #     if bidirectional:
+            #         output = output.view(output.size(0), output.size(2), output.size(1))
+            #         val_loss = criterion(output, targets)
+            #     else:
+            #         val_loss = criterion(output, targets.view(batch_size*seq_length).long())
             
             #     val_losses.append(val_loss.item())
             
