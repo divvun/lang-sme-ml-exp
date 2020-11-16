@@ -119,4 +119,5 @@ def train_and_save(model, data, device, model_name='sme_rnn', epochs=10, batch_s
         save_checkpoint(model, opt, tokens, n_hidden, n_layers, e, CHECKPOINT_PATH)   
         print("Epoch: {}...".format(e+1),
             "Loss: {:.4f}...".format(loss.item()))
-                # "Val Loss: {:.4f}".format(np.mean(val_losses))) 
+                # "Val Loss: {:.4f}".format(np.mean(val_losses)))
+
