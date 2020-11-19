@@ -1,5 +1,5 @@
-import os
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+# import os
+# os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
 import numpy as np
 import torch
@@ -8,17 +8,9 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 import re 
 
-torch.manual_seed(0)
-np.random.seed(0)
-# torch.backends.cudnn.enabled = False
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
-torch.cuda.manual_seed(0)
-
-
 def one_hot_encode(arr, n_labels):
     
-    # eempty/only zeros array
+    # empty/only zeros array
     one_hot = np.zeros((arr.size, n_labels), dtype=np.float32)
     
     # put 1 where needed 

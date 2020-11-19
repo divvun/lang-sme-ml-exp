@@ -37,13 +37,13 @@ class RNN(nn.Module):
         self.dropout = nn.Dropout(drop_prob)
         self.fc = nn.Linear(n_hidden*2 if bidirectional else n_hidden, len(self.chars))
 
-    def forward(self, x):
+    def forward(self, x, hidden):
 
         # self.lstm.flatten_parameters()
         if self.use_embeddings:
             x = self.emb(x)
 
-        r_output, hidden = self.rnn(x)
+        r_output, hidden = self.rnn(x, hidden)
 
         out = self.dropout(r_output)
 
