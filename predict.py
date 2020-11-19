@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
-import json
 import argparse
-import re
 import torch
 import torch.nn.functional as F
 import numpy as np
 from train import load_checkpoint
-from encode_input import load_corpus_chars
-from models import init_model
 from baseline_preprocess_input import one_hot_encode
 
 def predict(net, char, device, use_embeddings, h=None, top_k=None):
@@ -20,7 +16,7 @@ def predict(net, char, device, use_embeddings, h=None, top_k=None):
         inputs = torch.from_numpy(x)
 
     inputs = inputs.to(device)
-  
+
     h = tuple([each.data for each in h])
     out, h = net(inputs, h)
 
@@ -42,7 +38,6 @@ def predict(net, char, device, use_embeddings, h=None, top_k=None):
     return net.int2char[char], h
 
 def show_sample(net, size, device, use_embeddings, prime='The', top_k=None):
-    
     net.to(device)
 
     net.eval() # eval mode
@@ -67,27 +62,12 @@ if __name__ == "__main__":
     parser.add_argument("--len", type=int, help="length of the sequence to be predicted", required=True)
     parser.add_argument("--first-word", type=str, help="first word, start of prediction sequence", required=True)
     parser.add_argument("--device", type=str, help="device to use. default: cuda:0", default="cuda:0")
-   
+
     args = parser.parse_args()
-    chars = load_corpus_chars()
 
-    model_name = re.split('[/.]', args.model_file)
-    with open(f"./paramaters/{model_name[1]}_params.txt", "r") as model_params: 
-        params = json.load(model_params)
-        device = params['device']
-        is_gru = params['is_gru']
-        bidirectional = params['bidirectional']
-        use_embeddings = params['use_embeddings']
-        emb_dim = params['emb_dim']
-        n_hidden = params['n_hidden']
-        n_layers = params['n_layers']
-        lr = params['lr']
+    model, _, _, _, _, _ = load_checkpoint(args.model_file, args.device)
 
-    model, opt = init_model(chars, args.device, is_gru, bidirectional, use_embeddings, emb_dim, n_hidden, n_layers)
-    model, opt, tokens, n_hidden, n_layers, starting_epoch = load_checkpoint(args.model_file, model, opt)
-
-    print(show_sample(model, args.len, args.device, use_embeddings=use_embeddings, prime=args.first_word, top_k=5))
-
+    print(show_sample(model, args.len, args.device, use_embeddings=model.use_embeddings, prime=args.first_word, top_k=5))
 
 
 # Example:

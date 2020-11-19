@@ -74,9 +74,13 @@ class RNN(nn.Module):
 
         return hidden
 
-def init_model(chars, device, is_gru, bidirectional, use_embeddings=True, emb_dim=128, n_hidden=756, n_layers=2, lr=0.0001):
+def init_model(chars, device, is_gru, bidirectional, use_embeddings=True, emb_dim=128, n_hidden=756, n_layers=2):
     chars = load_corpus_chars()
     model = RNN(chars, device, is_gru, bidirectional, use_embeddings, emb_dim, n_hidden, n_layers)
+
+    return model
+
+def init_opt(model, lr=0.0001):
     opt = torch.optim.Adam(model.parameters(), lr=lr)
 
-    return model, opt
+    return opt
