@@ -13,20 +13,25 @@ First, just run `encode_input.py` - this will create two files in your dir that 
 
 You can start training the model with 
 
-`./train.py --model-name {your model name} --lr 0.001 --epochs 15 --batch-size 128 --seq-len 300 --emb-dim=256 --is-gru --device={your device} --use-emb --n-hidden 756`
+`./train.py start --device=cuda:0 --model-name {your model name} --epochs 1 --batch-size 128 --seq-len 100`
 
-or change the paramaters (see `-h` for hepl when calling train.py). 
+or with changed paramaters (see `-h` for hepl when calling train.py). 
 
-Note: `--resume-from-saved` now works as expected so you can stop and resume training whenever.
+Resume training with 
+
+`./train.py resume --device=cuda:0 --model-name {your model name} --epochs 5` 
+
+Note: `resume` now works as expected so you can stop and resume training whenever.
 
 Note: you should have a `models` folder - it's where trained models will be saved to.
 
+Note: adding `--bidirectional`, shrinking `--lr`, increasing `--batch-size`, `--n-hidden` and `--n-layers` would make the training time longer. However, this doesn't influence inference time. 
+
 ## Inference
 
-To run inference `./predict.py models/{your model name}.pt --len 100 --first-word ja --device={your device}`   
+To run inference `./predict.py models/{your model name}.pt --len 1000 --first-word ja --device={your device}`   
 
-The current inference functionality hasn't been tested yet. 
+All combinations of all hyperparamaters were tested and they work. As for the performance, LSTM (default) option gives better results than GRU in terms of prediction of real words. `--use-emb` and `--bidirectional` options work, but it wasn't yet established whether they improve the performance. 
 
-
-
-
+The best model wasn't established so far, but LSTM was giving me 96% accuracy after 5 epochs with 1000 chars of output.
+Note: accuracy in this case is just a proportion between real_words_predicted/all_words_predicted. 

@@ -44,9 +44,13 @@ def show_sample(net, size, device, use_embeddings, prime='The', top_k=None):
     chars = [ch for ch in prime]
     h = net.init_hidden(1)
 
+    # this loop is for building up the hidden state for model's predictions
+    # without it predictions would be very random
     for ch in prime:
         char, h = predict(net, ch, device, use_embeddings, h, top_k=top_k)
 
+    # this is outside of the loop on purpose
+    # we need only the last char
     chars.append(char)
 
     #  get a new char
@@ -55,6 +59,10 @@ def show_sample(net, size, device, use_embeddings, prime='The', top_k=None):
         chars.append(char)
 
     return ''.join(chars)
+
+def trim_spaces(text):
+    return " ".join(text.split())
+   
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Predicts next words after fisrt given")
@@ -67,8 +75,8 @@ if __name__ == "__main__":
 
     model, _, _, _, _, _ = load_checkpoint(args.model_file, args.device)
 
-    print(show_sample(model, args.len, args.device, use_embeddings=model.use_embeddings, prime=args.first_word, top_k=5))
-
-
+    predicted = show_sample(model, args.len, args.device, use_embeddings=model.use_embeddings, prime=args.first_word, top_k=5)
+    
+    print(trim_spaces(predicted))
 # Example:
 # ./predict.py models/{your model name}.pt --len 100 --first-word ja

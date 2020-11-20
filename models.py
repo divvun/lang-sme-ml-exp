@@ -16,7 +16,6 @@ class RNN(nn.Module):
         self.use_embeddings = use_embeddings
         self.emb_dim = emb_dim
         self.is_gru = is_gru
-
         self.chars = tokens
         self.int2char = dict(enumerate(self.chars))
         self.char2int = {ch: ii for ii, ch in self.int2char.items()}
@@ -43,7 +42,10 @@ class RNN(nn.Module):
         if self.use_embeddings:
             x = self.emb(x)
 
-        r_output, hidden = self.rnn(x, hidden)
+        if self.is_gru:
+            r_output, hidden = self.rnn(x)
+        else:
+            r_output, hidden = self.rnn(x, hidden)
 
         out = self.dropout(r_output)
 
@@ -82,5 +84,7 @@ def init_model(chars, device, is_gru, bidirectional, use_embeddings=True, emb_di
 
 def init_opt(model, lr=0.0001):
     opt = torch.optim.Adam(model.parameters(), lr=lr)
-
     return opt
+    
+
+    
