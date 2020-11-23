@@ -99,6 +99,6 @@ if __name__ == "__main__":
         res = predict_by_word(out, args.first_word)
 
         result.append(res)
-    print(result)
+    print('\n'.join(result))
 # Example:
 # ./predict.py models/{your model name}.pt --n-words 3 --first-word ja
