@@ -70,11 +70,14 @@ def predict_by_word(text, input_words):
     '''
         Limits an output by number of the words requested.
     '''
-    # input_words = input_words.split(' ') # if more then one word in the input
+    input_words = input_words.split(' ') # if more then one word in the input
     text_l = text.split(" ")
-    
-    output = text_l[:2] # input shouldn't be counted for the len of prediction
-    # print(output)
+
+    if '' not in input_words:
+        output = text_l[: 1 + len(input_words)] # input (even if modified) shouldn't be counted as prediction 
+    else:
+        output = text_l[:2]
+        
     words = " ".join(output)
     return words
 
@@ -82,7 +85,7 @@ def predict_by_word(text, input_words):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Predicts next words after fisrt given")
     parser.add_argument("model_file", type=str, help="The name of the file with pretrained and saved model.")
-    parser.add_argument("--n-words", type=int, help="number of words", required=True)
+    parser.add_argument("--n-preds", type=int, help="number of predictions after --first-word", required=True)
     parser.add_argument("--first-word", type=str, help="first word, start of prediction sequence", required=True)
     parser.add_argument("--device", type=str, help="device to use. default: cuda:0", default="cuda:0")
 
@@ -91,9 +94,9 @@ if __name__ == "__main__":
     model, _, _, _, _, _ = load_checkpoint(args.model_file, args.device)
 
     result = []
-    for i in range(args.n_words):
+    for i in range(args.n_preds):
 
-        predicted = show_sample(model, 1000, args.device, use_embeddings=model.use_embeddings, prime=args.first_word, top_k=5)
+        predicted = show_sample(model, 500, args.device, use_embeddings=model.use_embeddings, prime=args.first_word, top_k=5)
     
         out = trim_spaces(predicted)
         res = predict_by_word(out, args.first_word)
@@ -103,4 +106,4 @@ if __name__ == "__main__":
     print('\n'.join(result))
 
 # Example:
-# ./predict.py models/{your model name}.pt --n-words 3 --first-word ja
+# ./predict.py models/{your model name}.pt --n-preds 3 --first-word ja
