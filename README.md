@@ -15,7 +15,7 @@ You can start training the model with
 
 `./train.py start --device=cuda:0 --model-name {your model name} --epochs 1 --batch-size 128 --seq-len 100`
 
-or with changed paramaters (see `-h` for hepl when calling train.py). 
+or with changed paramaters (see `-h` for help when calling train.py). 
 
 Resume training with 
 
@@ -29,7 +29,9 @@ Note: adding `--bidirectional`, shrinking `--lr`, increasing `--batch-size`, `--
 
 ## Inference
 
-To run inference `./predict.py models/{your model name}.pt --len 1000 --first-word ja --device={your device}`   
+To run inference `./predict.py models/{your model name}.pt --n_words 3 --first-word ja --device={your device}`, where `n-words` is the number of words you want to see predicted.
+
+If you want to run `predict.py` with more then one input word, please, give them with '' - `--first-word 'on the'`. 
 
 All combinations of all hyperparamaters were tested and they work. As for the performance, LSTM (default) option gives better results than GRU in terms of prediction of real words. `--use-emb` and `--bidirectional` options work, but it wasn't yet established whether they improve the performance. 
 

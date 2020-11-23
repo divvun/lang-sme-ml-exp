@@ -3,6 +3,7 @@
 import argparse
 import torch
 import torch.nn as nn
+import numpy as np 
 from baseline_preprocess_input import get_batches, one_hot_encode
 from encode_input import load_corpus_chars, load_encoded_corpus
 from models import init_model, init_opt
@@ -50,7 +51,7 @@ def start_training(device, model_name='sme_rnn', epochs=10, batch_size=10, seq_l
     opt = init_opt(model, lr)
     starting_epoch = 0
 
-    print(f"Starting to train {model_name}...")
+    print(f"\nStarting to train {model_name}...")
     run_training_loop(model_name, model, opt, device, starting_epoch, epochs, lr, batch_size, seq_length)
 
 def run_training_loop(model_name, model, opt, device, starting_epoch, epochs, lr, batch_size, seq_length):
@@ -70,7 +71,7 @@ def run_training_loop(model_name, model, opt, device, starting_epoch, epochs, lr
     data = load_encoded_corpus()
     val_idx = int(len(data)*(1-val_frac))
     data, val_data = data[:val_idx], data[val_idx:]
-
+    
     tokens = len(model.chars)
     for e in range(starting_epoch, epochs):
         # initialize hidden state
@@ -103,14 +104,45 @@ def run_training_loop(model_name, model, opt, device, starting_epoch, epochs, lr
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), clip)
             opt.step()
-            # # put back to cuda if was detached
-            # model.to(device)
+
+        
+        val_h = model.init_hidden(batch_size)
+        val_losses = []
+
+        # move to eval mode
+        model.eval()
+
+        for x, y in get_batches(val_data, batch_size, seq_length):
+            
+            if model.use_embeddings:
+                inputs, targets = torch.from_numpy(x), torch.from_numpy(y)
+                inputs, targets = inputs.to(device), targets.to(device)
+            else:
+                # One-hot encode, make tensor move to cuda
+                x = one_hot_encode(x, tokens)
+                inputs, targets = torch.from_numpy(x), torch.from_numpy(y)
+                inputs, targets = inputs.to(device), targets.to(device)
+            
+            if not model.is_gru:
+                val_h = tuple([each.data for each in val_h])
+            
+            output, val_h = model(inputs, val_h)
+
+            if model.bidirectional:
+                output = output.view(output.size(0), output.size(2), output.size(1))
+                val_loss = criterion(output, targets)
+            else:
+                val_loss = criterion(output, targets.view(batch_size*seq_length).long())
+            
+            val_losses.append(val_loss.item())
+        
+        model.train() # reset to train 
 
         save_checkpoint(model, opt, e, lr, batch_size, seq_length, checkpoint_path(model_name))
         # return current_params
         print("Epoch: {}...".format(e+1),
-            "Loss: {:.4f}...".format(loss.item()))
-
+            "Loss: {:.4f}...".format(loss.item()),
+            "Valid loss: {:.4f}".format(np.mean(val_losses)))
 
 def add_required_args(p):
     p.add_argument("--device", type=str, help="cuda or cpu", required=True)
