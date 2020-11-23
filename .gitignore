@@ -177,3 +177,6 @@ data/*.txt
 corpus-chars.txt
 encoded-corpus.bin
 models/*.pt
+
+.direnv
+.envrc
