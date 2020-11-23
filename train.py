@@ -10,22 +10,33 @@ from models import init_model, init_opt
 
 def save_checkpoint(model, opt, epoch, lr, batch_size, seq_length, path):
     torch.save({
-        'model': model,
-        'opt': opt.state_dict(),
+        'model': model.state_dict(),
+        'chars': model.chars,
+        'is_gru': model.is_gru,
+        'bidirectional': model.bidirectional,
+        'use_embeddings': model.use_embeddings,
+        'emb_dim': model.emb_dim,
+        'n_hidden': model.n_hidden,
+        'n_layers': model.n_layers,
+        'drop_prob': model.drop_prob,
         'lr' : lr,
-        'epoch':epoch,
-        'batch_size':batch_size,
+        'opt': opt.state_dict(),
+        'epoch': epoch,
+        'batch_size': batch_size,
         'seq_length': seq_length,
     }, path)
 
 def load_checkpoint(path, device):
-    checkpoint = torch.load(path)
-    checkpoint['model'].device = device
-    checkpoint['model'].to(device)
-    opt = init_opt(checkpoint['model'], checkpoint['lr'])
+    checkpoint = torch.load(path, map_location=torch.device(device))
+
+    model = init_model(checkpoint['chars'], device, checkpoint['is_gru'], checkpoint['bidirectional'], checkpoint['use_embeddings'], checkpoint['emb_dim'], checkpoint['n_hidden'], checkpoint['n_layers'])
+    model.load_state_dict(checkpoint['model'])
+    model.to(device)
+
+    opt = init_opt(model, checkpoint['lr'])
     opt.load_state_dict(checkpoint['opt'])
 
-    return checkpoint['model'], opt, checkpoint['epoch'], checkpoint['lr'], checkpoint['batch_size'], checkpoint['seq_length']
+    return model, opt, checkpoint['epoch'], checkpoint['lr'], checkpoint['batch_size'], checkpoint['seq_length']
 
 
 def checkpoint_path(model_name):
