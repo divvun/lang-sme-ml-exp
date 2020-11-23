@@ -42,12 +42,12 @@ def load_checkpoint(path, device):
 def checkpoint_path(model_name):
     return f'models/{model_name}.pt'
 
-def resume_training(device, model_name='sme_rnn', epochs=10):
+def resume_training(device, model_name='sme_rnn', epochs=10): 
     model, opt, starting_epoch, lr, batch_size, seq_length = load_checkpoint(checkpoint_path(model_name), device)
 
     starting_epoch += 1
 
-    print(f"Resuming {model_name} from epoch {starting_epoch+1} ...")
+    print(f"\nResuming {model_name} from epoch {starting_epoch+1} ...")
 
     run_training_loop(model_name, model, opt, device, starting_epoch, epochs, lr, batch_size, seq_length)
 

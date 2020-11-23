@@ -96,14 +96,14 @@ if __name__ == "__main__":
     result = []
     for i in range(args.n_preds):
 
-        predicted = show_sample(model, 500, args.device, use_embeddings=model.use_embeddings, prime=args.first_word, top_k=5)
+        predicted = show_sample(model, 1000, args.device, use_embeddings=model.use_embeddings, prime=args.first_word, top_k=5)
     
         out = trim_spaces(predicted)
         res = predict_by_word(out, args.first_word)
 
         result.append(res)
     
-    print('\n'.join(result))
+    print('\n'.join(result)) 
 
 # Example:
 # ./predict.py models/{your model name}.pt --n-preds 3 --first-word ja
