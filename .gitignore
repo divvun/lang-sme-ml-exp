@@ -177,6 +177,8 @@ data/*.txt
 corpus-chars.txt
 encoded-corpus.bin
 models/*.pt
+train_words_enc.csv
+val_words_enc.csv
 
 .direnv
 .envrc

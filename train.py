@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-
+import subprocess
 import argparse
 import torch
 import torch.nn as nn
 import numpy as np 
-from baseline_preprocess_input import get_batches, one_hot_encode
+from baseline_preprocess_input import get_batches, one_hot_encode, LazyTextDataset, get_batch_data
 from encode_input import load_corpus_chars, load_encoded_corpus
+from encode_words import load_corpus_words, load_whole_corpus
 from models import init_model, init_opt
+# from words_batching import batch_large_data
 
 def save_checkpoint(model, opt, epoch, lr, batch_size, seq_length, path):
     torch.save({
         'model': model.state_dict(),
-        'chars': model.chars,
+        'tokens': model.tokens,
         'is_gru': model.is_gru,
         'bidirectional': model.bidirectional,
         'use_embeddings': model.use_embeddings,
@@ -29,7 +31,7 @@ def save_checkpoint(model, opt, epoch, lr, batch_size, seq_length, path):
 def load_checkpoint(path, device):
     checkpoint = torch.load(path, map_location=torch.device(device))
 
-    model = init_model(checkpoint['chars'], device, checkpoint['is_gru'], checkpoint['bidirectional'], checkpoint['use_embeddings'], checkpoint['emb_dim'], checkpoint['n_hidden'], checkpoint['n_layers'])
+    model = init_model(checkpoint['tokens'], device, checkpoint['is_gru'], checkpoint['bidirectional'], checkpoint['use_embeddings'], checkpoint['emb_dim'], checkpoint['n_hidden'], checkpoint['n_layers'])
     model.load_state_dict(checkpoint['model'])
     model.to(device)
 
@@ -56,9 +58,10 @@ def start_training(device, model_name='sme_rnn', epochs=10, batch_size=10, seq_l
     if not use_embeddings:
         emb_dim = None
    
-
-    chars = load_corpus_chars()
-    model = init_model(chars, device, is_gru, bidirectional, use_embeddings, emb_dim, n_hidden, n_layers)
+    
+    tokens = load_corpus_words()
+  
+    model = init_model(tokens, device, is_gru, bidirectional, use_embeddings, emb_dim, n_hidden, n_layers)
     opt = init_opt(model, lr)
     starting_epoch = 0
 
@@ -71,25 +74,28 @@ def run_training_loop(model_name, model, opt, device, starting_epoch, epochs, lr
     print(f"Training with batch size: {batch_size}; seq length: {seq_length}")
 
     clip=5
-    val_frac=0.1
 
     criterion = nn.CrossEntropyLoss()
 
     #train mode
-    model.to(device)
+    model.to(device) 
     model.train()
-
-    data = load_encoded_corpus()
-    val_idx = int(len(data)*(1-val_frac))
-    data, val_data = data[:val_idx], data[val_idx:]
     
-    tokens = len(model.chars)
+    
+    x_train, y_train, x_val, y_val = load_whole_corpus()
+       
+
+    tokens = len(model.tokens)
     for e in range(starting_epoch, epochs):
         # initialize hidden state
         h = model.init_hidden(batch_size)
-        # h = h.to(device)
-
-        for x, y in get_batches(data, batch_size, seq_length):
+      
+        for x, y in get_batch_data(x_train, y_train, batch_size):
+            x = np.asarray(x)
+            y = np.asarray(y)
+            x = x.reshape((-1, 1)) 
+            y = y.reshape((-1, 1))
+            
             if model.use_embeddings:
                 inputs, targets = torch.from_numpy(x), torch.from_numpy(y)
                 inputs, targets = inputs.to(device), targets.to(device)
@@ -102,17 +108,20 @@ def run_training_loop(model_name, model, opt, device, starting_epoch, epochs, lr
             # Creating a separate variables for the hidden state
             if not model.is_gru:
                 h = tuple([each.data for each in h])
-         
+        
             model.zero_grad()
-            
+            # print(inputs)
+            # exit()
             output, h = model(inputs, h)
             # some reshaping for output needed
             if model.bidirectional:
                 output = output.view(output.size(0), output.size(2), output.size(1))
                 loss = criterion(output, targets)
             else:
-                loss = criterion(output, targets.view(batch_size*seq_length).long())
+                loss = criterion(output, targets.view(-1).long())
+                
             loss.backward()
+
             nn.utils.clip_grad_norm_(model.parameters(), clip)
             opt.step()
 
@@ -123,13 +132,18 @@ def run_training_loop(model_name, model, opt, device, starting_epoch, epochs, lr
         # move to eval mode
         model.eval()
 
-        for x, y in get_batches(val_data, batch_size, seq_length):
+        for x, y in get_batch_data(x_val. y_val, batch_size):
+            x = np.asarray(x)
+            y = np.asarray(y)
+
+            x = x.reshape((-1, 1))
+            y = y.reshape((-1, 1))
             
             if model.use_embeddings:
                 inputs, targets = torch.from_numpy(x), torch.from_numpy(y)
                 inputs, targets = inputs.to(device), targets.to(device)
             else:
-                # One-hot encode, make tensor move to cuda
+                
                 x = one_hot_encode(x, tokens)
                 inputs, targets = torch.from_numpy(x), torch.from_numpy(y)
                 inputs, targets = inputs.to(device), targets.to(device)
@@ -143,7 +157,7 @@ def run_training_loop(model_name, model, opt, device, starting_epoch, epochs, lr
                 output = output.view(output.size(0), output.size(2), output.size(1))
                 val_loss = criterion(output, targets)
             else:
-                val_loss = criterion(output, targets.view(batch_size*seq_length).long())
+                val_loss = criterion(output, targets.view(-1).long())
             
             val_losses.append(val_loss.item())
         
@@ -177,7 +191,6 @@ if __name__ == "__main__":
 
     add_required_args(start_parser)
 
-    
     start_parser.add_argument("--lr", type=float, help="learning rate: default 0.0001", default=0.0001)
     start_parser.add_argument("--batch-size", type=int, help="mini_batch size", required=True)
     start_parser.add_argument("--seq-len", type=int, help="max length of a sequence to be trained on", required=True)
