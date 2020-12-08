@@ -1,5 +1,7 @@
 from io import StringIO
 
+import re
+
 test_input = StringIO("""\
 "<oahppoplána>"
 	"oahppoplána" N Sem/Prod-cogn Sg Gen <cohort-with-dynamic-compound> @P< #3->2
@@ -43,53 +45,14 @@ def skip(iter, count):
         next(iter)
     return iter
 
-def replace_with_char(iter, selectors, replace_ch):
-    ch = next(iter)
-    while ch != '':
-        if ch in selectors:
-            yield replace_ch
-        else:
-            yield ch
-        try:
-            ch = next(iter)
-        except:
-            break
-
-def map(iter, mutator):
-    ch = next(iter)
-    while ch != '':
-        yield mutator(ch)
-        ch = next(iter)
-
-def filter(iter, predicate):
-    ch = next(iter)
-    while ch != '':
-        if predicate(ch) == True:
-            yield ch
-        try:
-            ch = next(iter)
-        except:
-            break
-
-def buffer_as_list(iter, bytes=128):
-    x = []
-    try:
-        while True:
-            for _ in range(0, bytes):
-                x.append(next(iter))
-            yield x
-            x = []
-    except StopIteration:
-        yield x
-
-
 def lines(file):
     while True:
         try:
-            line = file.readline()[:-1]
-            if line == '':
+            raw_line = file.readline()
+            if raw_line == '':
                 break
-
+            
+            line = raw_line[:-1]
             # Work around line separators in the text
             for text in line.split("\u2028"):
                 yield text
@@ -98,6 +61,8 @@ def lines(file):
 
 READY_FOR_LEMMA = 1
 READING_LEMMAS = 2
+
+LEMMA_TAG_RE = re.compile(r'^\t*"(.+)" (.*)$')
 
 def parse(lines):
     # inputs = []
@@ -115,7 +80,6 @@ def parse(lines):
                 if current_lemma is not None:
                     current_input["lemmas"].append(current_lemma)
                     current_lemma = None
-                # inputs.append(current_input)
                 yield current_input
                 current_input = None
                 last_tabcount = 0
@@ -128,7 +92,6 @@ def parse(lines):
                 if current_lemma is not None:
                     current_input["lemmas"].append(current_lemma)
                     current_lemma = None
-                # inputs.append(current_input)
                 yield current_input
                 current_input = None
                 last_tabcount = 0
@@ -158,11 +121,11 @@ def parse(lines):
 
             last_tabcount = tabcount
 
-            items = line.strip().split(" ")
-            name = items.pop(0)[1:-1]
+            match = LEMMA_TAG_RE.match(line)
+            print(line)
             current_lemma.append({
-                "name": name,
-                "tags": items
+                "name": match.group(1),
+                "tags": match.group(2).strip().split(" ")
             })
 
     # Nested tabbed lines indicate a continuation of the previous tagged POS
@@ -174,6 +137,6 @@ def parse_file(path):
         for item in parse(lines(f)):
             yield item
 
-# import json
-# for line in parse(lines(test_input)):
-#     print(json.dumps(line, indent=2))
+import json
+for line in parse(lines(test_input)):
+    print(json.dumps(line, indent=2))
