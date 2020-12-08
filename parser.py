@@ -122,7 +122,6 @@ def parse(lines):
             last_tabcount = tabcount
 
             match = LEMMA_TAG_RE.match(line)
-            print(line)
             current_lemma.append({
                 "name": match.group(1),
                 "tags": match.group(2).strip().split(" ")
