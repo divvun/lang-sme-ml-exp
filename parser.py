@@ -1,4 +1,6 @@
-test_input = """\
+from io import StringIO
+
+test_input = StringIO("""\
 "<oahppoplána>"
 	"oahppoplána" N Sem/Prod-cogn Sg Gen <cohort-with-dynamic-compound> @P< #3->2
 : 
@@ -19,7 +21,15 @@ test_input = """\
 	"," CLB #7->8
 :
 \\n
-"""
+"<gulahallan>"
+	"gulahallan" N Sem/Act Sg Nom @SUBJ> #2->6
+:    "<Olggos guvlui>"
+	"olggos guvlui" Adv Sem/Plc @ADVL> #3->4
+: 
+"<gulahallan>"
+	"gulahallat" V TV PrfPrc @IMV #4->6
+: 
+""")
 
 def take(iter, max):
     for _ in range(0, max):
@@ -76,7 +86,13 @@ def buffer_as_list(iter, bytes=128):
 def lines(file):
     while True:
         try:
-            yield file.readline()[:-1]
+            line = file.readline()[:-1]
+            if line == '':
+                break
+
+            # Work around line separators in the text
+            for text in line.split("\u2028"):
+                yield text
         except:
             break
 
@@ -157,3 +173,7 @@ def parse_file(path):
     with open(path, 'r', encoding='utf-8') as f:
         for item in parse(lines(f)):
             yield item
+
+# import json
+# for line in parse(lines(test_input)):
+#     print(json.dumps(line, indent=2))
