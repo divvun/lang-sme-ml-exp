@@ -137,6 +137,6 @@ def parse_file(path):
         for item in parse(lines(f)):
             yield item
 
-import json
-for line in parse(lines(test_input)):
-    print(json.dumps(line, indent=2))
+# import json
+# for line in parse(lines(test_input)):
+#     print(json.dumps(line, indent=2))
