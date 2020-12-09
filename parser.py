@@ -28,6 +28,13 @@ test_input = StringIO("""\
 :    "<Olggos guvlui>"
 	"olggos guvlui" Adv Sem/Plc @ADVL> #3->4
 : 
+"<ruoŧagiela>"
+	"ruoŧagiella" N Sem/Lang Sg Acc <cohort-with-dynamic-compound> @<OBJ #11->7
+"<.>"
+	"." CLB #12->2
+: 
+ Suopmela 
+
 "<gulahallan>"
 	"gulahallat" V TV PrfPrc @IMV #4->6
 : 
@@ -61,6 +68,7 @@ def lines(file):
 
 READY_FOR_LEMMA = 1
 READING_LEMMAS = 2
+SKIPPING_UNTIL_LEMMA = 1
 
 LEMMA_TAG_RE = re.compile(r'^\t*"(.+)" (.*)$')
 
@@ -73,9 +81,17 @@ def parse(lines):
     state = READY_FOR_LEMMA
 
     for (line_number, line) in enumerate(lines):
+        if state == SKIPPING_UNTIL_LEMMA:
+            if line.startswith('"<'):
+                state = READY_FOR_LEMMA
+            else:
+                continue
+
         # We can skip lines that begin with a colon or are entirely blank
         if line.strip() == '' or line.startswith(":") or line.strip() == '\\n':
             state = READY_FOR_LEMMA
+            if line.startswith(":"):
+                state = SKIPPING_UNTIL_LEMMA
             if current_input is not None:
                 if current_lemma is not None:
                     current_input["lemmas"].append(current_lemma)
