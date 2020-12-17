@@ -6,38 +6,67 @@ import numpy as np
 from train import load_checkpoint
 from baseline_preprocess_input import one_hot_encode
 from encode_words import load_corpus_words
+import json
+import subprocess
 
-def predict_by_word(kept_word, input_word, n_preds, net, device, use_embeddings, h=None, top_k=None):
-    
+def predict_by_word(word2int_path, int2word_path,kept_word, input_word, n_preds, net, device, use_embeddings, h=None, top_k=None):
+
     predicted = []
-    for i in range(n_preds):
+    while len(predicted) < n_preds:
 
-        pred_word, hs = predict(net, input_word, device, use_embeddings, h, top_k=top_k)
-    
-        if pred_word not in predicted:
-            predicted += [' '.join(kept_word) + ' ' + str(input_word) + ' ' + str(pred_word)]
+        pred_word, hs = predict(net, word2int_path, int2word_path, input_word, device, use_embeddings, h, top_k=top_k)
+        # print(pred_word)
+        # if pred_word != input_word: # check just in case
+            # for s in predicted:
+            #     if pred_word not in s:
+        predicted += [' '.join(kept_word) + ' ' + str(input_word) + ' ' + str(pred_word)]
+    # print(predicted)
     return predicted
 
-def complete_word(prime, net, n_preds):
+def complete_word(prime, word2int_path, int2item_path, n_preds):
 
     tokens = load_corpus_words()
     possible_suggestions = [t for t in tokens if t.startswith(prime)]
-    # chooses top n frequent words
-    frequecy_suggestions = sorted([net.item2int[s] for s in possible_suggestions])[:n_preds]
+    # chooses top n frequent words from word2int.txt
+    with open(word2int_path, 'r') as f:
+        item2int = json.load(f)
 
-    suggestions = [net.int2item[s] for s in frequecy_suggestions]
+    frequecy_suggestions = sorted([item2int[s] for s in possible_suggestions])[:n_preds]
+    # print(frequecy_suggestions)
+    with open(int2item_path, 'r') as f:
+        int2item = json.load(f)
+
+    suggestions = [int2item[str(s)] for s in frequecy_suggestions]
 
     return suggestions
 
-def predict(net, word, device, use_embeddings, h=None, top_k=None):
+def predict(net, word2int_path, int2word_path, word, device, use_embeddings, h=None, top_k=None):
     # lookup in a dict
+    with open(word2int_path, 'r') as f:
+        item2int = json.load(f)
 
-    x = np.array([[net.item2int[word]]])
+    with open(int2word_path, 'r') as f:
+        int2item = json.load(f)
+    if len(word.split(' ')) > 1:
+        x = []
+        for w in word.split(' '):
+            w = item2int[w]
+            x.append(w)
+            
+    else:
+        x = np.array([[item2int[word]]])
+    print(np.asarray([i for i in x]))
+    exit()
+    # TODO add pos input from subprocess 
+    # pos_ouput = subprocess.check_output(f'echo {word}|hfst-tokenise /usr/local/share/giella/sme/tokeniser-disamb-gt-desc.pmhfst |hfst-lookup -q /usr/local/share/giella/sme/analyser-gt-norm.hfstol')
+    # print(word) 
+
+    # pos = pos_ouput.split('\n')[0].split(' ')[1].split('+')[1]  # if pos in valid_pos list
     if use_embeddings:
         inputs = torch.from_numpy(x)
-    else:
-        x = one_hot_encode(x, len(net.tokens))
-        inputs = torch.from_numpy(x)
+    # else:
+    #     x = one_hot_encode(x, len(net.tokens))
+    #     inputs = torch.from_numpy(x)
 
     inputs = inputs.to(device)
 
@@ -47,7 +76,7 @@ def predict(net, word, device, use_embeddings, h=None, top_k=None):
     # word probabilities from softmax
     p = F.softmax(out, dim=1).data
     p = p.cpu() # move to cpu
-
+    # print(p)
     # get top characters
     if top_k is None:
         top_ch = np.arange(len(net.tokens))
@@ -57,11 +86,11 @@ def predict(net, word, device, use_embeddings, h=None, top_k=None):
 
     p = p.numpy().squeeze()
     char = np.random.choice(top_ch, p=p/p.sum())
-
+    # print(int2item[str(char)])
     # returns encoded predicted value, and hidden_state
-    return net.int2item[char], h
+    return int2item[str(char)], h
 
-def show_sample(net, n_preds, device, use_embeddings, prime='The', top_k=None):
+def show_sample(net, word2int_path, int2item_path, n_preds, device, use_embeddings, prime='The', top_k=None):
     net.to(device)
 
     net.eval() # eval mode
@@ -93,38 +122,44 @@ def show_sample(net, n_preds, device, use_embeddings, prime='The', top_k=None):
         # keep words preceding the last input words
         # this also will be further used when model uses pos tags
         # for now it's just kept for consistent print stats
-        if len(prime.split()) > 1:
+        # print(len(prime.split(' ')))
+        if len(prime.split(' ')) > 1:
+            # print('here')
             kept_input = prime.split()[:-1]
 
             while len(predictions) < n_preds:
 
                 input_word = prime.split()[-1]
-
-                word, hs = predict(net, input_word, device, use_embeddings, h, top_k=top_k)
+                
+                word, hs = predict(net, word2int_path, int2item_path, input_word, device, use_embeddings, h, top_k=top_k)
                 prediction = ' '.join(kept_input) + " " + input_word + " " + word
 
                 if prediction not in predictions:
                     predictions.append(''.join(prediction))
-        print(predictions)
+        # print(predictions)
     if not prime.endswith(' '):
         print('\n')
         print('Got an unfinished word! Autocompleting it and predicting the next one ...\n')
-        if len(prime.split()) > 1:
+        if len(prime.split(' ')) > 1:
             kept_input = prime.split()[:-1]
             
-            input_words = complete_word(prime.split()[-1], net, n_preds)
+            input_words = complete_word(prime.split()[-1], word2int_path, int2item_path, n_preds)
             for input_word in input_words:
-
-                res = predict_by_word(kept_input, input_word, n_preds, net, device, use_embeddings, h, top_k=top_k)
+                inputs = input_word +  ' ' + ''.join(k for k in kept_input)
+                
+                res = predict_by_word(word2int_path, int2item_path, kept_input, inputs, n_preds, net, device, use_embeddings, h, top_k=top_k)
                 predictions += res
+                predictions.append('')
         else:
-            input_words = complete_word(prime.split()[-1], net, n_preds)
+            input_words = complete_word(prime.split()[-1], word2int_path, int2item_path, n_preds)
             # print(input_words)
             for input_word in input_words:
-                print('here')
-                res = predict_by_word(kept_input, input_word, n_preds, net, device, use_embeddings, h, top_k=top_k)
+                # print('here')
+                kept_input = ''
+                res = predict_by_word(word2int_path, int2item_path, kept_input, input_word, n_preds, net, device, use_embeddings, h, top_k=top_k)
                 predictions += res
-                
+                predictions.append('')    
+   
     
     return '\n'.join(p for p in predictions)
 
@@ -143,7 +178,7 @@ if __name__ == "__main__":
     result = []
     # for i in range(args.n_preds):
 
-    predicted = show_sample(model, args.n_preds, args.device, use_embeddings=model.use_embeddings, prime=args.first_word, top_k=5)
+    predicted = show_sample(model, './word2int.txt', './int2word.txt', args.n_preds, args.device, use_embeddings=model.use_embeddings, prime=args.first_word, top_k=5)
 
         # out = trim_spaces(predicted)
         # res = predict_by_word(predicted, args.first_word)
