@@ -2,7 +2,7 @@ import numpy as np
 import re
 import csv
 from collections import Counter
-# import pandas as pd
+import json
 def create_lookup_tables(words):
 
     word_counts = Counter(words)
@@ -84,11 +84,26 @@ def encode_corpus():
     # with open('./all_words.txt', 'w') as f:
     #     f.write('\n'.join([w for w in words_only]))
     word2int, int2word = create_lookup_tables(words_only)
+
+    with open('./word2int.txt', 'w') as f:
+        json.dump(word2int, f)
+
+    with open('./int2word.txt', 'w') as f:
+        json.dump(int2word, f)
+
     # int2word = dict(enumerate(set(words_only)))
     # word2int = {w:ii for ii, w in int2word.items()}
 
-    int2pos = dict(enumerate(set(pos_only)))
-    pos2int = {p:ii for ii, p in int2pos.items()}
+    # int2pos = dict(enumerate(set(pos_only)))
+    # pos2int = {p:ii for ii, p in int2pos.items()}
+
+    pos2int, int2pos = create_lookup_tables(pos_only)
+
+    with open('pos2int.txt', 'w') as f:
+        json.dump(pos2int, f)
+
+    with open('int2pos.txt', 'w') as f:
+        json.dump(int2pos, f)
 
     print('Found words: ', len(word2int))
     print("Found pos: ", len(pos2int))
@@ -109,24 +124,41 @@ def encode_corpus():
     encoded_val = encoded_w[val_idx:]
     val_enc_x = encoded_val[:len(encoded_val)-1]
     val_enc_y = encoded_val[1:]
-    encoded_p = np.array(list(int2pos.keys()), dtype=int)
+    encoded_p = [pos2int[p] for p in pos_only]
+    # print(print(len(encoded_w), len(encoded_p)))
+    # exit()
+
+    pos_train = encoded_p[:val_idx]
+    pos_val = encoded_p[val_idx:]
+
+    train_enc_x_pos = pos_train[:len(pos_train) -1]
+    train_enc_y_pos = pos_train[1:]
+
+    val_enc_x_pos = pos_val[:len(pos_val)-1]
+    val_enc_y_pos = pos_val[1:]
+
 
     with open('./train_words_enc.csv', 'w', newline='') as f:
         writer = csv.writer(f, delimiter=',')
-        writer.writerows(zip(train_enc_x, train_enc_y))
+        writer.writerows(zip(train_enc_x, train_enc_x_pos, train_enc_y, train_enc_y_pos))
 
     with open('./val_words_enc.csv', 'w', newline='') as f:
         writer = csv.writer(f, delimiter=',')
-        writer.writerows(zip(val_enc_x, val_enc_y))
+        writer.writerows(zip(val_enc_x,val_enc_x_pos, val_enc_y, val_enc_y_pos))
+
+    # with open('pos_train.csv', 'w'. newline='') as f:
+        # writer = csv.writer(f, delimiter=',')
+        # writer.writerows(zip())
 
     # with open('./val.csv', 'w', newline='') as f: 
+    
         # np.savetxt(f, train_y, fmt='%i')
 
     # with open('./encoded-words-val.csv', 'w', newline='') as f:
     #     np.savetxt(f, encoded_val, fmt='%i') 
         
-    # with open('./encoded-pos.bin', 'wb') as f:    
-    #     np.save(f, encoded_p)
+    with open('./encoded-pos.txt', 'w') as f:    
+        f.write('\n'.join(pos2int.keys()))
 
     with open('./corpus-words.txt', 'w') as f:
         f.write('\n'.join(word2int.keys()))
@@ -135,16 +167,21 @@ def load_whole_corpus():
     with open('train_words_enc.csv', 'r') as f:
         train = list(csv.reader(f))
         X_train = [int(i[0]) for i in train]
-        y_train = [int(i[1]) for i in train]
+        pos_X_train = [int(i[1]) for i in train]
+        y_train = [int(i[2]) for i in train]
+        pos_y_train = [int(i[3]) for i in train]
+
     with open('val_words_enc.csv', 'r') as f:
         val = list(csv.reader(f))
         X_val = [int(i[0]) for i in val]
-        y_val = [int(i[1]) for i in val]
-    return X_train, y_train, X_val, y_train
+        y_val = [int(i[2]) for i in val]
+        pos_X_val = [int(i[1]) for i in val]
+        pos_y_val = [int(i[3]) for i in val]
+    return X_train,pos_X_train, y_train, pos_y_train, X_val, pos_X_val, y_val, pos_y_val  
        
-# def load_pos():
-#     with open('./encoded-pos.txt', 'r') as f:
-#         return f.read
+def load_pos():
+    with open('./encoded-pos.txt', 'r') as f:
+        return f.read().split('\n') 
 
 def load_corpus_words():
     with open('./corpus-words.txt', 'r') as f:

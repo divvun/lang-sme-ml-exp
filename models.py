@@ -17,15 +17,15 @@ class RNN(nn.Module):
         self.emb_dim = emb_dim
         self.is_gru = is_gru
         self.tokens = tokens
-        self.int2item = dict(enumerate(self.tokens))
-        self.item2int = {ch: ii for ii, ch in self.int2item.items()}
-        
+        # self.int2item = dict(enumerate(self.tokens))
+        # self.item2int = {ch: ii for ii, ch in self.int2item.items()}
+        # self.pos = pos
         # tokens = tokens
-        # self.int2word = dict(enumerate(self.))
+        # self.int2word = dict(enumerate(self.pos))
         # self.word2int = 
         if use_embeddings:
-            self.emb = nn.Embedding(len(tokens), emb_dim)
-
+            self.emb = nn.Embedding(len(self.tokens), emb_dim)
+            # self.emb_pos = nn.Embedding(len(self.pos), emb_dim)
             if is_gru:
                 self.rnn = nn.GRU(emb_dim, n_hidden, n_layers, bidirectional=bidirectional, dropout=drop_prob, batch_first=True)
             else:
@@ -41,6 +41,8 @@ class RNN(nn.Module):
 
     def forward(self, x, hidden):
 
+        # x_pos = self.pos
+        # x = torch.cat((x, x_pos), dim=1)
         # self.lstm.flatten_parameters()
         if self.use_embeddings:
             x = self.emb(x)
@@ -52,8 +54,8 @@ class RNN(nn.Module):
 
         out = self.dropout(r_output)
 
-        if not self.bidirectional:
-            out = out.contiguous().view(-1, self.n_hidden)
+        # if not self.bidirectional:
+            # out = out.contiguous().view(-1, self.n_hidden)
 
         out = self.fc(out)
 
