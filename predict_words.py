@@ -4,23 +4,44 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from train import load_checkpoint
-from baseline_preprocess_input import one_hot_encode
+# from baseline_preprocess_input import one_hot_encode
 from encode_words import load_corpus_words
 import json
 import subprocess
 
-def predict_by_word(word2int_path, int2word_path,kept_word, input_word, n_preds, net, device, use_embeddings, h=None, top_k=None):
+def get_most_common(word2int_path, int2item_path, n_preds):
+
+    with open(word2int_path) as f:
+        word2int = json.load(f)
+
+    with open(int2item_path) as f:
+        int2word = json.load(f)
+
+    frequecy_suggestions = sorted(word2int[w] for w in word2int)[:n_preds]
+    
+    suggestions = [int2word[str(s)] for s in frequecy_suggestions]
+
+    return suggestions
+
+def check_word(prime):
+
+    tokens = load_corpus_words()
+
+    for k in tokens:
+        if k.startswith(prime):
+            return True
+        
+    return False
+
+def predict_by_word(word2int_path, int2word_path, input_word, n_preds, net, device, h=None, top_k=None):
 
     predicted = []
     while len(predicted) < n_preds:
 
-        pred_word, hs = predict(net, word2int_path, int2word_path, input_word, device, use_embeddings, h, top_k=top_k)
-        # print(pred_word)
-        # if pred_word != input_word: # check just in case
-            # for s in predicted:
-            #     if pred_word not in s:
-        predicted += [' '.join(kept_word) + ' ' + str(input_word) + ' ' + str(pred_word)]
-    # print(predicted)
+        pred_word, hs = predict(net, word2int_path, int2word_path, input_word, device, h, top_k=top_k)
+    
+        predicted += [' '.join(input_word) + ' ' + str(pred_word)]
+        
     return predicted
 
 def complete_word(prime, word2int_path, int2item_path, n_preds):
@@ -32,135 +53,148 @@ def complete_word(prime, word2int_path, int2item_path, n_preds):
         item2int = json.load(f)
 
     frequecy_suggestions = sorted([item2int[s] for s in possible_suggestions])[:n_preds]
-    # print(frequecy_suggestions)
     with open(int2item_path, 'r') as f:
         int2item = json.load(f)
 
     suggestions = [int2item[str(s)] for s in frequecy_suggestions]
-
     return suggestions
 
-def predict(net, word2int_path, int2word_path, word, device, use_embeddings, h=None, top_k=None):
+def predict(net, word2int_path, int2word_path, word, device, h=None, top_k=None):
     # lookup in a dict
     with open(word2int_path, 'r') as f:
         item2int = json.load(f)
 
     with open(int2word_path, 'r') as f:
         int2item = json.load(f)
-    if len(word.split(' ')) > 1:
+
+    if len(word) > 1:
         x = []
-        for w in word.split(' '):
+        for w in word:
             w = item2int[w]
-            x.append(w)
-            
+            x.append(w)          
     else:
-        x = np.array([[item2int[word]]])
-    print(np.asarray([i for i in x]))
-    exit()
-    # TODO add pos input from subprocess 
-    # pos_ouput = subprocess.check_output(f'echo {word}|hfst-tokenise /usr/local/share/giella/sme/tokeniser-disamb-gt-desc.pmhfst |hfst-lookup -q /usr/local/share/giella/sme/analyser-gt-norm.hfstol')
-    # print(word) 
+        word = ''.join(word)
+        x = [int(item2int[word])]
+        word = word.split()
 
-    # pos = pos_ouput.split('\n')[0].split(' ')[1].split('+')[1]  # if pos in valid_pos list
-    if use_embeddings:
-        inputs = torch.from_numpy(x)
-    # else:
-    #     x = one_hot_encode(x, len(net.tokens))
-    #     inputs = torch.from_numpy(x)
+    pos_ouput = []
+    # print('getting pos tag!')
+    for w in word:
+        pos_ouput.append(subprocess.check_output(f'echo {w}|hfst-tokenise ~/usr/share/giella/sme/tokeniser-disamb-gt-desc.pmhfst |hfst-lookup -q ~/usr/share/giella/sme/analyser-gt-norm.hfstol', shell=True).decode('utf-8'))
+    
+    pos = []
+    for out in pos_ouput:
+        pos.append(out.split('\t')[1].split('+')[1])  # if pos in valid_pos list
 
+    with open('./pos2int.txt', 'r') as f:
+        pos2int = json.load(f)
+    with open('./int2pos.txt', 'r') as f:
+        int2pos = json.load(f)
+    
+    pos_enc = [pos2int[p] for p in pos]
+   
+    inputs = np.array([[a,b] for a, b in zip(x, pos_enc)]) # [[word, pos] [word pos]]
+    
+    inputs = torch.from_numpy(inputs)
+   
     inputs = inputs.to(device)
-
+    
     h = tuple([each.data for each in h])
+    # print('inputs', inputs)
     out, h = net(inputs, h)
-
     # word probabilities from softmax
     p = F.softmax(out, dim=1).data
     p = p.cpu() # move to cpu
-    # print(p)
-    # get top characters
+    # print(p[2])
     if top_k is None:
-        top_ch = np.arange(len(net.tokens))
+        top_ch = np.arange(len(tokens))
     else:
-        p, top_ch = p.topk(top_k)
+        p, top_ch = p[len(word)-1].topk(top_k)
         top_ch = top_ch.numpy().squeeze()
-
+    
     p = p.numpy().squeeze()
-    char = np.random.choice(top_ch, p=p/p.sum())
-    # print(int2item[str(char)])
-    # returns encoded predicted value, and hidden_state
+    char = np.random.choice(top_ch[0], p=p[0]/p[0].sum())
+   
     return int2item[str(char)], h
 
-def show_sample(net, word2int_path, int2item_path, n_preds, device, use_embeddings, prime='The', top_k=None):
+def show_sample(net, word2int_path, int2item_path, n_preds, device, prime='The', top_k=None):
+
     net.to(device)
-
+    forget_point = 3
+   
     net.eval() # eval mode
-    # chars = [ch for ch in prime]
+   
     predictions = []
-    h = net.init_hidden(1)
-
-    # this loop is for building up the hidden state for model's predictions
-    # without it predictions would be very random
-    # if len(prime.split(' ')) > 1:
-    #     w = prime.split(' ')[0]
-    #     # for w in prime.split(' '):
-    #     word, h = predict(net, w, device, use_embeddings, h, top_k=top_k)
-    # else:
-    #     #TODO finish
-    #     word, h = predict(net, prime, device, use_embeddings, h, top_k=top_k)
-
-    # this is outside of the loop on purpose
-    # we need only the last word
-    # words.append(word)
-    # print(words)
-    #  get a new char
-
 
     # check if the input is finihsed with a white space
     if prime.endswith(' '):
         print('\n')
-        print('Got completed word(s) as input. Predicting next words ...\n')
-        # keep words preceding the last input words
-        # this also will be further used when model uses pos tags
-        # for now it's just kept for consistent print stats
-        # print(len(prime.split(' ')))
-        if len(prime.split(' ')) > 1:
-            # print('here')
-            kept_input = prime.split()[:-1]
-
+        print("Got complete word(s). Predicting next words ... \n")
+        prime = prime.split()
+        is_in_dict = check_word(prime[-1])
+        if not is_in_dict:
+            print('Got nonsense word!')
+            prediction = get_most_common(word2int_path, int2item_path, n_preds)
+            predictions = [' '.join(prime) + p for p in prediction]
+        else:
+            # print('Will consider only real words in the input! \n')
+            valid_prime = []
+            for p in prime:
+                if check_word(p):
+                    valid_prime.append(p)
+            prime = valid_prime
+            h = net.init_hidden(len(prime))
+            if len(prime) > forget_point:
+                prime = prime[-forget_point:]
+                h = net.init_hidden(forget_point)
+                prime = prime[-forget_point:]
             while len(predictions) < n_preds:
 
-                input_word = prime.split()[-1]
-                
-                word, hs = predict(net, word2int_path, int2item_path, input_word, device, use_embeddings, h, top_k=top_k)
-                prediction = ' '.join(kept_input) + " " + input_word + " " + word
+                # input_word = prime.split()[-1]
+                word, hs = predict(net, word2int_path, int2item_path, prime, device, h, top_k=top_k)
+                prediction = ' '.join(prime) + " " + word
 
                 if prediction not in predictions:
                     predictions.append(''.join(prediction))
-        # print(predictions)
-    if not prime.endswith(' '):
+
+    else:
         print('\n')
         print('Got an unfinished word! Autocompleting it and predicting the next one ...\n')
-        if len(prime.split(' ')) > 1:
-            kept_input = prime.split()[:-1]
+        # if len(prime.split(' ')) > 1:
+        prime = prime.split()
+        is_in_dict = check_word(prime[-1])
+        if not is_in_dict:
+            print('Got nonsense word! \n')
+            prediction = get_most_common(word2int_path, int2item_path, n_preds)
+            predictions = [' '.join(prime) + ' ' + p for p in prediction]  
+        else:
+            # print('Will consider only real words in the input! \n')
+            valid_prime = []
+            for p in prime:
+                if check_word(p):
+                    valid_prime.append(p)
+
+            prime = valid_prime
+            h = net.init_hidden(len(prime))
+
+            if len(prime) > forget_point:
+                h = net.init_hidden(forget_point)
+                prime = prime[-forget_point:]
             
-            input_words = complete_word(prime.split()[-1], word2int_path, int2item_path, n_preds)
+            input_words = complete_word(prime[-1], word2int_path, int2item_path, n_preds)
             for input_word in input_words:
-                inputs = input_word +  ' ' + ''.join(k for k in kept_input)
-                
-                res = predict_by_word(word2int_path, int2item_path, kept_input, inputs, n_preds, net, device, use_embeddings, h, top_k=top_k)
+                if len(prime) > 1:
+
+                    inputs = ' '.join(prime[:-1]) + " " + input_word
+                    inputs = inputs.split()
+
+                else:
+                    inputs = input_word.split()
+
+                res = predict_by_word(word2int_path, int2item_path, inputs, n_preds, net, device, h, top_k=top_k)
                 predictions += res
                 predictions.append('')
-        else:
-            input_words = complete_word(prime.split()[-1], word2int_path, int2item_path, n_preds)
-            # print(input_words)
-            for input_word in input_words:
-                # print('here')
-                kept_input = ''
-                res = predict_by_word(word2int_path, int2item_path, kept_input, input_word, n_preds, net, device, use_embeddings, h, top_k=top_k)
-                predictions += res
-                predictions.append('')    
-   
-    
+
     return '\n'.join(p for p in predictions)
 
 
@@ -173,19 +207,11 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, help="device to use. default: cuda:0", default="cuda:0")
     args = parser.parse_args()
 
-    model, _, _, _, _, _ = load_checkpoint(args.model_file, args.device)
-
+    model, _, _, _, _ = load_checkpoint(args.model_file, args.device)
     result = []
-    # for i in range(args.n_preds):
-
-    predicted = show_sample(model, './word2int.txt', './int2word.txt', args.n_preds, args.device, use_embeddings=model.use_embeddings, prime=args.first_word, top_k=5)
-
-        # out = trim_spaces(predicted)
-        # res = predict_by_word(predicted, args.first_word)
-
-        # result.append(res)
+    predicted = show_sample(model, './word2int.txt', './int2word.txt', args.n_preds, args.device, prime=args.first_word, top_k=5)
 
     print(predicted)
 
 # Example:
-# ./predict.py models/{your model name}.pt --n-preds 3 --first-word ja
+# ./predict.py models/{your model name}.pt --n-preds 3 --first-word 'ja'
