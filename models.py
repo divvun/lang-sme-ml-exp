@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
 from encode_input import load_corpus_chars
-from encode_words import load_corpus_words
+from encode_words import load_corpus_words, load_pos
 class RNN(nn.Module):
 
-    def __init__(self, tokens, device, is_gru, bidirectional, emb_dim=128, n_hidden=256, n_layers=2,
+    def __init__(self, tokens, pos, device, is_gru, bidirectional, emb_dim=128, n_hidden=256, n_layers=2,
                                drop_prob=0.5, lr=0.001):
         super().__init__()
         self.drop_prob = drop_prob
@@ -19,13 +19,13 @@ class RNN(nn.Module):
         self.tokens = tokens
         # self.int2item = dict(enumerate(self.tokens))
         # self.item2int = {ch: ii for ii, ch in self.int2item.items()}
-        # self.pos = pos
+        self.pos = pos
         # tokens = tokens
         # self.int2word = dict(enumerate(self.pos))
         # self.word2int = 
         # if use_embeddings:
         self.emb = nn.Embedding(len(self.tokens), emb_dim)
-            # self.emb_pos = nn.Embedding(len(self.pos), emb_dim)
+        self.emb_pos = nn.Embedding(len(self.pos), emb_dim)
         if is_gru:
             self.rnn = nn.GRU(emb_dim, n_hidden, n_layers, bidirectional=bidirectional, dropout=drop_prob, batch_first=True)
         else:
@@ -39,18 +39,21 @@ class RNN(nn.Module):
         self.dropout = nn.Dropout(drop_prob)
         self.fc = nn.Linear(n_hidden*2 if bidirectional else n_hidden, len(tokens))
 
-    def forward(self, x, hidden):
+    def forward(self, t, p, hidden):
 
-        # x_pos = self.pos
-        # x = torch.cat((x, x_pos), dim=1)
+        x = self.emb(t)
+        x_pos = self.emb_pos(p)
+        # print(x.shape)
+        # concat two emb layers
+        x = torch.cat((x, x_pos), 0)
         # self.lstm.flatten_parameters()
         # if self.use_embeddings:
-        x = self.emb(x)
-
+        x = x.view(x.size(0), 1, x.size(1))
+        # print(x.shape)
         if self.is_gru:
             r_output, hidden = self.rnn(x)
         else:
-            r_output, hidden = self.rnn(x, hidden)
+            r_output, hidden = self.rnn(x)
 
         out = self.dropout(r_output)
 
@@ -81,11 +84,11 @@ class RNN(nn.Module):
 
         return hidden
 
-def init_model(tokens, device, is_gru, bidirectional, emb_dim=128, n_hidden=756, n_layers=2):
+def init_model(tokens, pos, device, is_gru, bidirectional, emb_dim=128, n_hidden=756, n_layers=2):
     
     tokens = load_corpus_words()
-    
-    model = RNN(tokens, device, is_gru, bidirectional, emb_dim, n_hidden, n_layers)
+    pos = load_pos()
+    model = RNN(tokens, pos, device, is_gru, bidirectional, emb_dim, n_hidden, n_layers)
 
     return model
 

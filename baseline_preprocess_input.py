@@ -7,6 +7,7 @@ import re
 import csv
 import subprocess
 import linecache
+from encode_words import load_whole_corpus
 
 def one_hot_encode(arr, n_labels):
     
@@ -80,51 +81,42 @@ class Data(Dataset):
     def __len__(self):
         return len(self.X_data)
 
-def get_batch_data(X, y, batch_size):
+def get_batch_data(X, x_pos, y, y_pos, batch_size):
+    X = np.asarray(X)
+    x_pos = np.asarray(x_pos)
+    y = np.asarray(y)
+    y_pos = np.asarray(y_pos)
 
+    X = X.reshape((-1, 1))
+    x_pos = x_pos.reshape((-1,1))
+    y = y.reshape((-1, 1))
+    y_pos = y_pos.reshape((-1, 1))
+
+    X = np.concatenate((X, x_pos), axis=1)
+    y = np.concatenate((y, y_pos), axis=1)
+   
     data = Data(X, y)
 
-    batched_data = DataLoader(dataset=data, batch_size=batch_size, drop_last=True, shuffle=False)
-       
+    batched_data = DataLoader(dataset=data, num_workers=4, batch_size=batch_size, drop_last=True, shuffle=False)
+    # for x, y in batched_data:
+    #     print(x)
+    #     print(y)
+    #     exit()
     return batched_data
 
 
-# def get_batch_data(X, y, batch_size, seq_length):
-        
-#     batch_size_total = batch_size * seq_length
+def get_batch(path, b_size):
+    # path to 'train_words_enc.csv' or 'val_words_enc.csv'
     
-#     n_batches = len(X)//batch_size_total
-#     # print(len(arr.dataset))
-#     X = X[:n_batches * batch_size_total]
-#     y = y[:n_batches * batch_size_total]
+    X, x_pos, y, y_pos = load_whole_corpus(path)
 
-#     X = X.reshape((batch_size, -1))
-#     y = y.reshape((batch_size, -1))
+    data = Data(X, y)
+    data_pos = Data(x_pos, y_pos)
 
-#     for n in range(0, X.shape[1], seq_length):
-#         # The features
-#         x = X[:, n:n+seq_length]
-#         y = y[:, n:n+seq_length]
-#         # The targets, shifted by one (because the next char or word)
-#         # y = np.zeros_like(x)
-#         # try:
-#         #     y[:, :-1], y[:, -1] = x[:, 1:], arr[:, n+seq_length]
-#         # except IndexError:
-#         #     y[:, :-1], y[:, -1] = x[:, 1:], arr[:, 0]
-#         yield x, y
+    batched = DataLoader(dataset=data, batch_size=b_size, drop_last=True, shuffle=False)
 
-# def read_csv():
-#     with open('./train_words_enc.csv', newline='') as f:
-#         data = list(csv.reader(f))
-#     X = [int(i[0]) for i in data]
-#     y = [int(i[1]) for i in data]
-#     # X = np.asarray(X)
-#     # y = np.asarray(y)
-#     return X, y
+    batched_pos = DataLoader(dataset=data_pos, batch_size=b_size, drop_last=True, shuffle=False)
 
-# x, y = read_csv()
+    return (batched, batched_pos)
 
-# batch = get_batch_data(x, y, batch_size=128)
-# for x, y in batch:
-#     print(x, y)
-#     exit()
+

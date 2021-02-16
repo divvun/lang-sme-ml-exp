@@ -70,7 +70,7 @@ def find_tokens(text):
 def encode_corpus():
 
     print('Reading analyzed coprus...')
-    with open('data/sme-freecorpus-dependency-analysis.txt', 'r', encoding='utf-8') as f:
+    with open('data/sme-boundcorpus-dependency-analysis.txt', 'r', encoding='utf-8') as f:
         text = f.read()
 
     words_and_pos = find_tokens(text)
@@ -163,21 +163,21 @@ def encode_corpus():
     with open('./corpus-words.txt', 'w') as f:
         f.write('\n'.join(word2int.keys()))
 
-def load_whole_corpus():
-    with open('train_words_enc.csv', 'r') as f:
+def load_whole_corpus(path):
+    with open(path, 'r') as f: #'train_words_enc.csv
         train = list(csv.reader(f))
         X_train = [int(i[0]) for i in train]
         pos_X_train = [int(i[1]) for i in train]
         y_train = [int(i[2]) for i in train]
         pos_y_train = [int(i[3]) for i in train]
 
-    with open('val_words_enc.csv', 'r') as f:
-        val = list(csv.reader(f))
-        X_val = [int(i[0]) for i in val]
-        y_val = [int(i[2]) for i in val]
-        pos_X_val = [int(i[1]) for i in val]
-        pos_y_val = [int(i[3]) for i in val]
-    return X_train,pos_X_train, y_train, pos_y_train, X_val, pos_X_val, y_val, pos_y_val  
+    # with open('val_words_enc.csv', 'r') as f:
+    #     val = list(csv.reader(f))
+    #     X_val = [int(i[0]) for i in val]
+    #     y_val = [int(i[2]) for i in val]
+    #     pos_X_val = [int(i[1]) for i in val]
+    #     pos_y_val = [int(i[3]) for i in val]
+    return X_train, pos_X_train, y_train, pos_y_train #X_val, pos_X_val, y_val, pos_y_val  
        
 def load_pos():
     with open('./encoded-pos.txt', 'r') as f:
