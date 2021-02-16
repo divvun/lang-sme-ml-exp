@@ -13,6 +13,18 @@ First, just run `encode_words.py` - this will create two files in your dir that 
 
 You can start training the model with 
 
+New args for AWS env:
+
+--model-dir (the same as old `model-name`).
+
+--train-dir - where the training (preprocessed) data is, `train-words-enc.csv`
+
+--val-dir - validation data `val-words-enc.csv`
+
+--vocab - dictionary int2word.txt (not used yet and commented)
+
+--output-dir - commented 
+
 `./train.py start --device=cuda --model-name {your model name} --epochs 3 --batch-size 64 --seq-len 2 --use-emb`
 
 or with changed paramaters (see `-h` for help when calling train.py). 
@@ -20,8 +32,6 @@ or with changed paramaters (see `-h` for help when calling train.py).
 Resume training with 
 
 `./train.py resume --device=cuda:0 --model-name {your model name} --epochs 5` 
-
-Note: `resume` now works as expected so you can stop and resume training whenever.
 
 Note: you should have a `models` folder - it's where trained models will be saved to.
 
