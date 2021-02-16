@@ -15,7 +15,7 @@ You can start training the model with
 
 New args for AWS env:
 
---model-dir (the same as old `model-name`).
+--model-dir (for AWS env) the path to folder with `--model-name`.
 
 --train-dir - where the training (preprocessed) data is, `train-words-enc.csv`
 
