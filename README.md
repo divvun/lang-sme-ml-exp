@@ -17,9 +17,9 @@ New args for AWS env:
 
 --model-dir (for AWS env) the path to folder with `--model-name`.
 
---train-dir - where the training (preprocessed) data is, `train-words-enc.csv`
+--train-dir - the path to `train-words-enc.csv`
 
---val-dir - validation data `val-words-enc.csv`
+--val-dir - the path to validation data `val-words-enc.csv`
 
 --vocab - dictionary int2word.txt (not used yet and commented)
 
