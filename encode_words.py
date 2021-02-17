@@ -1,4 +1,5 @@
 import numpy as np
+import lzma
 import re
 import csv
 from collections import Counter
@@ -68,9 +69,8 @@ def find_tokens(text):
     return words
 
 def encode_corpus():
-
-    print('Reading analyzed coprus...')
-    with open('data/sme-boundcorpus-dependency-analysis.txt', 'r', encoding='utf-8') as f:
+    print('Reading analyzed corpus...')
+    with lzma.open('data/sme-boundcorpus-dependency-analysis.txt.xz', 'rt', encoding='utf-8') as f:
         text = f.read()
 
     words_and_pos = find_tokens(text)
@@ -115,10 +115,10 @@ def encode_corpus():
 
     encoded_w = [word2int[w] for w in words_only]
 
-    val_idx = int(len(encoded_w)*(1-0.1))
+    val_idx = int(len(encoded_w) * (1 - 0.1))
 
     encoded_train = encoded_w[:val_idx]
-    train_enc_x = encoded_train[:len(encoded_train)-1]
+    train_enc_x = encoded_train[:len(encoded_train) - 1]
     train_enc_y = encoded_train[1:]
 
     encoded_val = encoded_w[val_idx:]
@@ -131,12 +131,11 @@ def encode_corpus():
     pos_train = encoded_p[:val_idx]
     pos_val = encoded_p[val_idx:]
 
-    train_enc_x_pos = pos_train[:len(pos_train) -1]
+    train_enc_x_pos = pos_train[:len(pos_train) - 1]
     train_enc_y_pos = pos_train[1:]
 
-    val_enc_x_pos = pos_val[:len(pos_val)-1]
+    val_enc_x_pos = pos_val[:len(pos_val) - 1]
     val_enc_y_pos = pos_val[1:]
-
 
     with open('./train_words_enc.csv', 'w', newline='') as f:
         writer = csv.writer(f, delimiter=',')
@@ -144,7 +143,7 @@ def encode_corpus():
 
     with open('./val_words_enc.csv', 'w', newline='') as f:
         writer = csv.writer(f, delimiter=',')
-        writer.writerows(zip(val_enc_x,val_enc_x_pos, val_enc_y, val_enc_y_pos))
+        writer.writerows(zip(val_enc_x, val_enc_x_pos, val_enc_y, val_enc_y_pos))
 
     # with open('pos_train.csv', 'w'. newline='') as f:
         # writer = csv.writer(f, delimiter=',')
