@@ -80,7 +80,6 @@ class InputPaths(typing.NamedTuple):
 
 
 def get_batch(inputs, b_size):
-    print(inputs)
     (x, x_pos, y, y_pos) = inputs
 
     data = Data(x, y)

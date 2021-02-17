@@ -44,3 +44,14 @@ To run inference `./predict.py models/{your model name}.pt --n-preds 3 --first-w
 If you don't type a white space after `--first-word`, it will try to autocomplete the input and only then give a prediction per scenario. 
 If the white space is a part of input, it will be considered a full word and prediction will start after it. 
 
+
+
+## Setting up AWS
+
+Get your access credentials from someone.
+
+- Install `aws-cli`.
+- Run `aws config`
+- Paste the credentials in the order requested
+- Use eu-west-1 as the region
+- Leave other things (like output type) as default by hitting enter
