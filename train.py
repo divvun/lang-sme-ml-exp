@@ -53,7 +53,6 @@ class InputPaths(typing.NamedTuple):
         return os.path.join(self.train_dir, "train_words_enc.csv")
 
     @lru_cache(maxsize=None)
-    @property
     def train_words(self):
         with open(self.train_words_path, 'r') as f:
             train = list(csv.reader(f))
@@ -68,9 +67,7 @@ class InputPaths(typing.NamedTuple):
     def val_words_path(self):
         return os.path.join(self.train_dir, "val_words_enc.csv")
 
-
     @lru_cache(maxsize=None)
-    @property
     def val_words(self):
         with open(self.val_words_path, 'r') as f:
             train = list(csv.reader(f))
@@ -83,6 +80,7 @@ class InputPaths(typing.NamedTuple):
 
 
 def get_batch(inputs, b_size):
+    print(inputs)
     (x, x_pos, y, y_pos) = inputs
 
     data = Data(x, y)
@@ -257,7 +255,7 @@ def run_training_loop(model, opt, device, starting_epoch, params: Hyperparams, p
         # initialize hidden state
         h = model.init_hidden(batch_size)
       
-        tok, pos = get_batch(paths.train_words, batch_size)
+        tok, pos = get_batch(paths.train_words(), batch_size)
 
         for (tok_x, tok_y), (pos_x, pos_y) in zip(tok, pos):
             inputs_tok, targets_tok = tok_x.to(device), tok_y.to(device)
@@ -286,7 +284,7 @@ def run_training_loop(model, opt, device, starting_epoch, params: Hyperparams, p
         # move to eval mode
         model.eval()
 
-        tok, pos = get_batch(paths.val_words, batch_size)
+        tok, pos = get_batch(paths.val_words(), batch_size)
 
         for (tok_x, tok_y), (pos_x, pos_y) in zip(tok, pos):
             inputs_tok, targets_tok = tok_x.to(device), tok_y.to(device)
