@@ -351,6 +351,9 @@ def main():
         train_dir = args.train_dir,
     )
 
+    os.makedirs(paths.model_dir, exist_ok=True)
+    os.makedirs(paths.output_dir, exist_ok=True)
+
     # if args.which == 'resume':
     #     resume_training(args.device, args.model_name, args.model_dir, args.epochs)
     # else:
