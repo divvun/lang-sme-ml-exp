@@ -35,7 +35,7 @@ class InputPaths(typing.NamedTuple):
         return os.path.join(self.train_dir, "encoded-pos.txt")
 
     @lru_cache(maxsize=None)
-    def load_pos_path(self):
+    def load_pos(self):
         with open(self.pos_path, 'r', encoding = "utf-8") as f:
             return f.read().split('\n')
 
@@ -319,7 +319,7 @@ def main():
     p.add_argument("--n-hidden", type=int, help="size of hidden layer", default=756)
     p.add_argument("--n-layers", type=int, help="num of layers in the model", default=2)
     p.add_argument("--device", type=str, help="cuda or cpu", default="cuda:0")
-    
+
     args = p.parse_args()
 
     params = Hyperparams(
