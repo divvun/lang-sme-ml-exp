@@ -17,7 +17,7 @@ date_now = datetime.datetime.utcnow().strftime("%Y-%m-%d-%H-%M-%S-%f")
 job_name = f"{PROJ_NAME}-{date_now}"
 output_path = f"{S3_BUCKET}/{PROJ_NAME}/"
 checkpoint_path = f"{S3_BUCKET}/{PROJ_NAME}/{job_name}/checkpoints/"
-code_path = f"{S3_BUCKET}/{PROJ_NAME}/{job_name}/source" # No trailing slash here because AWS is dumb
+code_path = f"{S3_BUCKET}/{PROJ_NAME}" # No trailing slash here because AWS is dumb
 
 print("[-] DATA IS BEING GENERATED AT:")
 print(f"  {output_path}{job_name}/")
