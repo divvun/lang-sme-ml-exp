@@ -55,7 +55,7 @@ class InputPaths(typing.NamedTuple):
     @lru_cache(maxsize=None)
     def train_words(self):
         with open(self.train_words_path, 'r') as f:
-            train = list(csv.reader(f))[:400]
+            train = list(csv.reader(f))
             x_train = [int(i[0]) for i in train]
             pos_x_train = [int(i[1]) for i in train]
             y_train = [int(i[2]) for i in train]
@@ -70,7 +70,7 @@ class InputPaths(typing.NamedTuple):
     @lru_cache(maxsize=None)
     def val_words(self):
         with open(self.val_words_path, 'r') as f:
-            train = list(csv.reader(f))[:400]
+            train = list(csv.reader(f))
             x_train = [int(i[0]) for i in train]
             pos_x_train = [int(i[1]) for i in train]
             y_train = [int(i[2]) for i in train]
@@ -237,14 +237,14 @@ def run_training_loop(model, opt, device, starting_epoch, params: Hyperparams, p
     for e in range(starting_epoch, params.epochs):
         print(f"Epoch: {e}")
         # initialize hidden state
-        print("h init hidden")
+        print("init hidden")
         h = model.init_hidden(batch_size)
       
-        print("Get batch")
         train_words_inputs = paths.train_words()
         total_inputs = len(train_words_inputs[0])
         print(f"Total inputs: {total_inputs}")
 
+        print("Get batch")
         tok, pos = get_batch(train_words_inputs, batch_size)
         print("get batch finished")
 
