@@ -1,16 +1,14 @@
-#!/usr/bin/env python3
 import os
 import argparse
 import typing
 import csv
+import sys
+import signal
 from functools import lru_cache
+
 import torch
 import torch.nn as nn
 import numpy as np 
-# from baseline_preprocess_input import get_batch
-# from encode_words import load_corpus_words, load_pos
-# from models import init_model, init_opt
-# from words_batching import batch_large_data
 
 from torch.utils.data import DataLoader, Dataset
 
@@ -21,6 +19,8 @@ class InputPaths(typing.NamedTuple):
     output_dir: str
     # Training input data directory
     train_dir: str
+    # checkpont directory
+    checkpoint_dir: str
 
     @property
     def model_path(self):
@@ -28,7 +28,7 @@ class InputPaths(typing.NamedTuple):
     
     @property
     def checkpoint_path(self):
-        return os.path.join(self.output_dir, "checkpoint.pth")
+        return os.path.join(self.checkpoint_dir, "checkpoint.pth")
 
     @property
     def pos_path(self):
@@ -55,7 +55,7 @@ class InputPaths(typing.NamedTuple):
     @lru_cache(maxsize=None)
     def train_words(self):
         with open(self.train_words_path, 'r') as f:
-            train = list(csv.reader(f))
+            train = list(csv.reader(f))[:400]
             x_train = [int(i[0]) for i in train]
             pos_x_train = [int(i[1]) for i in train]
             y_train = [int(i[2]) for i in train]
@@ -70,7 +70,7 @@ class InputPaths(typing.NamedTuple):
     @lru_cache(maxsize=None)
     def val_words(self):
         with open(self.val_words_path, 'r') as f:
-            train = list(csv.reader(f))
+            train = list(csv.reader(f))[:400]
             x_train = [int(i[0]) for i in train]
             pos_x_train = [int(i[1]) for i in train]
             y_train = [int(i[2]) for i in train]
@@ -202,38 +202,24 @@ def save_checkpoint(model, opt, epoch, lr, batch_size, model_name):
         'batch_size': batch_size,
     }, model_name)
 
-# def load_checkpoint(model_name, device):
-#     checkpoint = torch.load(model_name, map_location=torch.device(device))
-#     tokens = load_corpus_words()
-#     pos = load_pos()
-#     model = init_model(tokens, pos, device, checkpoint['is_gru'], checkpoint['bidirectional'], checkpoint['emb_dim'], checkpoint['n_hidden'], checkpoint['n_layers'])
-#     model.load_state_dict(checkpoint['model'])
-#     model.to(device)
-
-#     opt = init_opt(model, checkpoint['lr'])
-#     opt.load_state_dict(checkpoint['opt'])
-
-#     return model, opt, checkpoint['epoch'], checkpoint['lr'], checkpoint['batch_size']
-
-
-# def checkpoint_path(model_name):
-#     return f'models/{model_name}.pth'
-
-# def resume_training(device, model_name, model_dir, epochs=10): 
-#     model, opt, starting_epoch, lr, batch_size = load_checkpoint(checkpoint_path(model_name), device)
-#     starting_epoch += 1
-#     print(f"\nResuming {model_name} from epoch {starting_epoch+1} ...")
-#     run_training_loop(model_name, model, opt, device, starting_epoch, epochs, lr, batch_size, train_dir, val_dir)
-
 def start_training(device, params: Hyperparams, paths: InputPaths):
     tokens = paths.load_corpus_words()
     pos = paths.load_pos()
-    
-    model = RNN(tokens, pos, device, params)
-    opt = torch.optim.Adam(model.parameters(), lr=params.lr)
-    starting_epoch = 0
 
-    print(f"\nStarting to train model '{paths.model_path}'...")
+    model = RNN(tokens, pos, device, params)
+    model.to(device)
+    opt = torch.optim.Adam(model.parameters(), lr=params.lr)
+
+    if os.path.exists(paths.checkpoint_path):
+        checkpoint = torch.load(paths.checkpoint_path, map_location=torch.device(device))
+        starting_epoch = checkpoint['epoch'] + 1
+        model.load_state_dict(checkpoint['model'])
+        opt.load_state_dict(checkpoint['opt'])
+        print(f"\nResuming model training from epoch {starting_epoch} ...")
+    else:
+        starting_epoch = 0
+        print(f"\nStarting to train model '{paths.model_path}'...")
+
     run_training_loop(model, opt, device, starting_epoch, params, paths)
 
 def run_training_loop(model, opt, device, starting_epoch, params: Hyperparams, paths: InputPaths):
@@ -241,22 +227,28 @@ def run_training_loop(model, opt, device, starting_epoch, params: Hyperparams, p
     print(f"Training with batch size: {params.batch_size}")
 
     clip = 5
-
     criterion = nn.CrossEntropyLoss()
 
     #train mode
-    model.to(device)
     model.train()
 
     batch_size = params.batch_size
     
     for e in range(starting_epoch, params.epochs):
+        print(f"Epoch: {e}")
         # initialize hidden state
+        print("h init hidden")
         h = model.init_hidden(batch_size)
       
-        tok, pos = get_batch(paths.train_words(), batch_size)
+        print("Get batch")
+        train_words_inputs = paths.train_words()
+        total_inputs = len(train_words_inputs[0])
+        print(f"Total inputs: {total_inputs}")
 
-        for (tok_x, tok_y), (pos_x, pos_y) in zip(tok, pos):
+        tok, pos = get_batch(train_words_inputs, batch_size)
+        print("get batch finished")
+
+        for (n, ((tok_x, tok_y), (pos_x, pos_y))) in enumerate(zip(tok, pos)):
             inputs_tok, targets_tok = tok_x.to(device), tok_y.to(device)
             inputs_pos, _targets_pos = pos_x.to(device), pos_y.to(device)
 
@@ -271,21 +263,23 @@ def run_training_loop(model, opt, device, starting_epoch, params: Hyperparams, p
          
             output = output.view(batch_size, -1)
             loss = criterion(output, targets_tok)
-            # print(loss)
+            print(f"[{n+1}/{total_inputs}] {loss}")
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), clip)
             opt.step()
 
-        
-        val_h = model.init_hidden(batch_size, batch_size)
+        print("val_h init hidden")
+        val_h = model.init_hidden(batch_size)
         val_losses = []
 
         # move to eval mode
         model.eval()
 
-        tok, pos = get_batch(paths.val_words(), batch_size)
+        val_words_inputs = paths.val_words()
+        total_val_inputs = len(val_words_inputs[0])
+        tok, pos = get_batch(val_words_inputs, batch_size)
 
-        for (tok_x, tok_y), (pos_x, pos_y) in zip(tok, pos):
+        for (n, ((tok_x, tok_y), (pos_x, pos_y))) in enumerate(zip(tok, pos)):
             inputs_tok, targets_tok = tok_x.to(device), tok_y.to(device)
             inputs_pos, _targets_pos = pos_x.to(device), pos_y.to(device)
 
@@ -294,13 +288,16 @@ def run_training_loop(model, opt, device, starting_epoch, params: Hyperparams, p
 
             output, val_h = model(inputs_tok, inputs_pos, val_h)
 
-            output = output.view(batch_size,-1)
+            output = output.view(batch_size, -1)
             val_loss = criterion(output, targets_tok)
+            print(f"[{n+1}/{total_val_inputs}] {val_loss}")
 
             val_losses.append(val_loss.item())
 
+        print("training")
         model.train() # reset to train
 
+        print("saving checkpoint")
         save_checkpoint(model, opt, e, params.lr, batch_size, paths.checkpoint_path)
 
         # return current_params
@@ -313,14 +310,27 @@ def run_training_loop(model, opt, device, starting_epoch, params: Hyperparams, p
         torch.save(model.state_dict(), f)
 
 def main():
+    def sigterm_handler(signum, frame):
+        if signum == signal.SIGTERM:
+            print("SIGTERM received")
+            print("TODO: save checkpoint")
+            sys.exit(1)
+        else:
+            print(f"Signal received: {signum}")
+
+    signal.signal(signal.SIGTERM, sigterm_handler)
+
+    # AWS-required fields
     model_dir = os.environ.get('SM_MODEL_DIR', None)
     output_data_dir = os.environ.get('SM_OUTPUT_DATA_DIR', None)
     train_dir = os.environ.get('SM_CHANNEL_TRAIN', None)
+    checkpoint_dir = None if model_dir is None else "/opt/ml/checkpoints"
 
     p = argparse.ArgumentParser(description="parameters for training the model")
     p.add_argument('--model-dir', type=str, default=model_dir, required=True if model_dir is None else False)
     p.add_argument('--output-data-dir', type=str, default=output_data_dir, required=True if output_data_dir is None else False)
     p.add_argument('--train-dir', type=str, default=train_dir, required=True if train_dir is None else False)
+    p.add_argument('--checkpoint-dir', type=str, default=checkpoint_dir)
     p.add_argument("--epochs", type=int, help='num epochs to train over', required=True)
     p.add_argument("--batch-size", type=int, help="mini_batch size", required=True)
     p.add_argument("--lr", type=float, help="learning rate: default 0.0001", default=0.0001)
@@ -332,6 +342,12 @@ def main():
     p.add_argument("--device", type=str, help="cuda or cpu", default="cuda:0")
 
     args = p.parse_args()
+
+    if args.device.startswith("cuda"):
+        import torch.cuda
+        if not torch.cuda.is_available():
+            print("CUDA not found to be available.")
+            sys.exit(1)
 
     params = Hyperparams(
         epochs = args.epochs,
@@ -348,22 +364,19 @@ def main():
         model_dir = args.model_dir,
         output_dir = args.output_data_dir,
         train_dir = args.train_dir,
+        checkpoint_dir = args.checkpoint_dir or args.output_data_dir
     )
 
     os.makedirs(paths.model_dir, exist_ok=True)
     os.makedirs(paths.output_dir, exist_ok=True)
 
-    # if args.which == 'resume':
-    #     resume_training(args.device, args.model_name, args.model_dir, args.epochs)
-    # else:
+    print("Starting training")
     start_training(
         args.device,
         params,
         paths,
     )
- 
+
 if __name__ == "__main__":
+    print("Running main")
     main()
-# Example:
-# ./train.py start --device=cuda:0 --model-name {your model name} --epochs 1 --batch-size 128 
-# ./train.py resume --device=cuda:0 --model-name {your model name} --epochs 5
