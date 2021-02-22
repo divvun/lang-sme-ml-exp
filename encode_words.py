@@ -77,7 +77,7 @@ def encode_corpus():
 
     words_only = [w[0] for w in words_and_pos]
     pos_only = [w[1] for w in words_and_pos] 
-
+    
     # print(words_only[:100])  
     # print(pos_only[:100])
 
@@ -90,12 +90,6 @@ def encode_corpus():
 
     with open('./int2word.txt', 'w') as f:
         json.dump(int2word, f)
-
-    # int2word = dict(enumerate(set(words_only)))
-    # word2int = {w:ii for ii, w in int2word.items()}
-
-    # int2pos = dict(enumerate(set(pos_only)))
-    # pos2int = {p:ii for ii, p in int2pos.items()}
 
     pos2int, int2pos = create_lookup_tables(pos_only)
 
@@ -110,41 +104,25 @@ def encode_corpus():
 
     print("Encoding text ...")
 
-    # words = list(word2int.keys())
-    # print(words[:10])
-
     encoded_w = [word2int[w] for w in words_only]
 
-    val_idx = int(len(encoded_w)*(1-0.1))
+    enc_x = encoded_w[:-1]
+    enc_y = encoded_w[1:]
 
-    encoded_train = encoded_w[:val_idx]
-    train_enc_x = encoded_train[:len(encoded_train)-1]
-    train_enc_y = encoded_train[1:]
-
-    encoded_val = encoded_w[val_idx:]
-    val_enc_x = encoded_val[:len(encoded_val)-1]
-    val_enc_y = encoded_val[1:]
     encoded_p = [pos2int[p] for p in pos_only]
-    # print(print(len(encoded_w), len(encoded_p)))
+    x_pos = encoded_p[:-1]
+    y_pos = encoded_p[1:]
+
+    print(len(encoded_w), len(encoded_p))
     # exit()
 
-    pos_train = encoded_p[:val_idx]
-    pos_val = encoded_p[val_idx:]
-
-    train_enc_x_pos = pos_train[:len(pos_train) -1]
-    train_enc_y_pos = pos_train[1:]
-
-    val_enc_x_pos = pos_val[:len(pos_val)-1]
-    val_enc_y_pos = pos_val[1:]
-
-
-    with open('./train_words_enc.csv', 'w', newline='') as f:
+    with open('./all_words_enc.csv', 'w', newline='') as f:
         writer = csv.writer(f, delimiter=',')
-        writer.writerows(zip(train_enc_x, train_enc_x_pos, train_enc_y, train_enc_y_pos))
+        writer.writerows(zip(enc_x, x_pos, enc_y, y_pos))
 
-    with open('./val_words_enc.csv', 'w', newline='') as f:
-        writer = csv.writer(f, delimiter=',')
-        writer.writerows(zip(val_enc_x,val_enc_x_pos, val_enc_y, val_enc_y_pos))
+    # with open('./val_words_enc.csv', 'w', newline='') as f:
+    #     writer = csv.writer(f, delimiter=',')
+    #     writer.writerows(zip(val_enc_x,val_enc_x_pos, val_enc_y, val_enc_y_pos))
 
     # with open('pos_train.csv', 'w'. newline='') as f:
         # writer = csv.writer(f, delimiter=',')
